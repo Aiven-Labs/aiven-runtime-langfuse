@@ -2,7 +2,7 @@
 
 Standalone **Langfuse v4.38.0** with its native web UI and background worker, **Aiven PostgreSQL**, **Aiven ClickHouse**, **Aiven Valkey**, and an external **S3-compatible bucket**. Capture traces, inspect observations and manage prompts without requiring another application template or an LLM provider account.
 
-Both official Langfuse images are pinned by version and registry digest. This is a demo deployment template: local configuration checks pass, but the container builds and end-to-end Aiven/R2 deployment are **not yet validated**. See [VALIDATION.md](VALIDATION.md).
+Both official Langfuse images are pinned by version and registry digest. This is a demo deployment template for new v4 installations. Container builds, native login, R2 trace ingestion, worker processing and persistence across Runtime app restarts have been validated on Aiven. See [VALIDATION.md](VALIDATION.md).
 
 ## Architecture
 
@@ -37,9 +37,11 @@ The template uses Langfuse's native login with an initial organization, project 
 
 These are starting suggestions, not tested minimums or production sizing. Review available plans and pricing in the target project before provisioning. Plans are selected in Console/API, not enforced by the Compose manifests. Langfuse's upstream production guidance recommends 2 CPU/4 GiB each for web and worker, with additional sizing for the databases; load-test your expected ingestion rate before production.
 
-**Langfuse v4 requires ClickHouse >=25.12.** Explicitly select Aiven 26.3; do not use 25.8. Other managed ClickHouse services, including Aiven, are community-supported by Langfuse. This template must pass the migration and trace-ingestion tests before being considered validated for Aiven.
+**Langfuse v4 requires ClickHouse >=25.12.** Explicitly select Aiven 26.3; do not use 25.8. Other managed ClickHouse services, including Aiven, are community-supported by Langfuse. The tested fresh-install configuration and remaining limits are recorded in [VALIDATION.md](VALIDATION.md).
 
 Create the `langfuse` ClickHouse database in Aiven Console/API before starting web. Aiven uses Replicated databases and remaps MergeTree table engines. The wrapper selects Langfuse's unclustered migration syntax (`CLICKHOUSE_CLUSTER_ENABLED=false`) so it does not assume a cluster named `default`; Aiven's database handles DDL replication. Use a **single-shard** service for this starter. Multi-shard routing is outside its scope. The ClickHouse user needs DDL/read/write permissions and access to Langfuse's required system tables; see [upstream requirements](https://langfuse.com/self-hosting/deployment/infrastructure/clickhouse). Do not disable TLS or skip failed migrations as a workaround.
+
+This starter supports **new Langfuse v4 installations**, not upgrades with existing v3 data. The worker defaults `LANGFUSE_BACKGROUND_MIGRATION_V4_ENABLE_HISTORIC_BACKFILL=false`: Aiven does not expose the `SYSTEM MERGES` privilege required by the optional v3-to-v4 historic backfill, even when legacy tables are empty. Normal schema migrations and other background migrations stay enabled. For existing Langfuse data, use an upstream-supported migration plan; do not use this setting to skip required data conversion. If deploying the initial image before this default was added, set the variable explicitly in Runtime.
 
 Valkey stores queues, not just a disposable cache. Set its maxmemory policy to `noeviction` and enable service-supported persistence; monitor capacity. Do not share an evicting cache instance. Connection limits, retries and ingestion throughput need review before scaling.
 

@@ -4,6 +4,8 @@ RUN apk add --no-cache python3 ca-certificates
 COPY bootstrap.py /starter/bootstrap.py
 USER 1001:1001
 WORKDIR /app
+# Fresh v4 installs have no legacy data to backfill. Aiven restricts SYSTEM MERGES.
+ENV LANGFUSE_BACKGROUND_MIGRATION_V4_ENABLE_HISTORIC_BACKFILL=false
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PORT=3030 HOSTNAME=127.0.0.1
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3030/api/ready', timeout=8)"
 ENTRYPOINT ["dumb-init", "--", "python3", "/starter/bootstrap.py", "worker"]
