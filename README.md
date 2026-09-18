@@ -108,7 +108,7 @@ Generate secrets independently and preserve `SALT` and `ENCRYPTION_KEY` across r
 ## TLS and startup behavior
 
 - PostgreSQL uses Prisma's `sslmode=require`, `sslaccept=strict` and CA path. Supplied URI query options are replaced. `DIRECT_URL` uses the same verified connection; per-process pool size is capped at ten.
-- Valkey URI credentials are decoded into native Langfuse settings. TLS verifies the certificate and hostname against the project CA. URI query flags cannot disable those checks.
+- Valkey URI credentials are decoded into native Langfuse settings. TLS verifies the certificate and hostname using system public CAs plus the project CA. URI query flags cannot disable those checks.
 - ClickHouse HTTP traffic uses HTTPS plus Node's additional CA trust. A narrowly scoped, build-time patch changes the pinned upstream migration script from `skip_verify=true` to `false`; Go uses a bundle containing system CAs plus the Aiven CA. Migration credentials are URL-encoded independently of the raw HTTP password. The image build fails if the expected upstream script changes.
 - Web retains Langfuse's native PostgreSQL and ClickHouse migration entrypoint; failures stop startup. Worker uses its native entrypoint after shared configuration validation. `dumb-init` forwards termination signals to the application.
 - Public signup, telemetry and batch exports are disabled. Worker health is loopback-only. No model credentials are bundled.

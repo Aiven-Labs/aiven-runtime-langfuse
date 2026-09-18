@@ -2,6 +2,7 @@ import base64
 import importlib.util
 from pathlib import Path
 import subprocess
+import ssl
 import tempfile
 import unittest
 from urllib.parse import parse_qs, urlsplit
@@ -60,6 +61,14 @@ class StarterTests(unittest.TestCase):
         self.assertEqual(self.env['REDIS_TLS_SERVERNAME'], 'vk.example.com')
         self.assertEqual((self.root/'aiven-ca.pem').stat().st_mode & 0o777, 0o600)
         self.assertIn(self.pem, Path(self.env['SSL_CERT_FILE']).read_text())
+
+    def test_valkey_trusts_public_roots_and_project_ca(self):
+        prepare(self.env, self.root, 'worker')
+        bundle = Path(self.env['REDIS_TLS_CA_PATH']).read_text()
+        system_ca = Path(ssl.get_default_verify_paths().cafile or '/etc/ssl/certs/ca-certificates.crt')
+        self.assertIn(system_ca.read_text(), bundle)
+        self.assertIn(self.pem, bundle)
+        self.assertNotEqual(self.env['REDIS_TLS_CA_PATH'], self.env['NODE_EXTRA_CA_CERTS'])
 
     def test_migration_url_encodes_credentials_without_changing_http_password(self):
         prepare(self.env, self.root, 'web')

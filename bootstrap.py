@@ -103,7 +103,8 @@ def prepare(env, directory, role):
                REDIS_TLS_REJECT_UNAUTHORIZED="true", REDIS_TLS_CHECK_SERVER_IDENTITY="true",
                REDIS_TLS_SERVERNAME=redis.hostname)
     if not local:
-        env["REDIS_TLS_CA_PATH"] = str(ca)
+        # An explicit Redis CA replaces Node's public roots, so include both.
+        env["REDIS_TLS_CA_PATH"] = str(bundle)
 
     env["CLICKHOUSE_URL"] = origin(required(env, "CLICKHOUSE_URL"), "CLICKHOUSE_URL", local)
     migration = parsed(required(env, "CLICKHOUSE_MIGRATION_URL"), "CLICKHOUSE_MIGRATION_URL")
