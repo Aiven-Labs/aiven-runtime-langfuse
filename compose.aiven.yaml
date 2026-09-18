@@ -1,0 +1,34 @@
+# Deploy as TWO Runtime applications with the SAME three data services and S3 bucket.
+# ClickHouse is not auto-created by Runtime's Compose scanner: provision 26.3 manually.
+# Web: one replica, 4 GiB; worker: one replica, 4 GiB, NO public ports.
+# PostgreSQL: startup-4, version 17. Valkey: >=2 GiB, noeviction, persistence enabled.
+# ClickHouse: single shard, >=8 GiB, pre-created Replicated database 'langfuse'.
+services:
+  langfuse-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - langfuse-postgres
+      - langfuse-valkey
+    environment:
+      DATABASE_URL: postgresql://USER:PASSWORD@langfuse-postgres:5432/defaultdb
+      VALKEY_URL: redis://USER:PASSWORD@langfuse-valkey:6379/0
+      # Add shared settings, ClickHouse/S3 credentials and web initialization settings in Runtime.
+  langfuse-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - langfuse-postgres
+      - langfuse-valkey
+    environment:
+      DATABASE_URL: postgresql://USER:PASSWORD@langfuse-postgres:5432/defaultdb
+      VALKEY_URL: redis://USER:PASSWORD@langfuse-valkey:6379/0
+      # Use the SAME shared settings as web. Start after web migrations succeed.
+  langfuse-postgres:
+    image: postgres:17
+  langfuse-valkey:
+    image: valkey/valkey:9

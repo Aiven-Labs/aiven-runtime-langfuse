@@ -1,0 +1,10 @@
+FROM langfuse/langfuse-worker:4.38.0@sha256:8631cf429efc4a2981d4e6ced4c005b9f6f620a4e34625baf60152301ec6d006
+USER root
+RUN apk add --no-cache python3 ca-certificates
+COPY bootstrap.py /starter/bootstrap.py
+USER 1001:1001
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PORT=3030 HOSTNAME=127.0.0.1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3030/api/ready', timeout=8)"
+ENTRYPOINT ["dumb-init", "--", "python3", "/starter/bootstrap.py", "worker"]
+CMD []

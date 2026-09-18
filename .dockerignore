@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!Dockerfile.worker
+!bootstrap.py
+!patch_migrations.py

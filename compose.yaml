@@ -1,0 +1,92 @@
+x-shared: &shared
+  LOCAL_DEVELOPMENT: "true"
+  DATABASE_URL: postgresql://langfuse:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/langfuse
+  VALKEY_URL: redis://valkey:6379/0
+  SALT: ${SALT:?Set SALT}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
+  NEXTAUTH_URL: http://localhost:8080
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+  CLICKHOUSE_USER: langfuse
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD}
+  CLICKHOUSE_DB: langfuse
+  S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET}
+  S3_REGION: ${S3_REGION:?Set S3_REGION}
+  S3_ENDPOINT: ${S3_ENDPOINT:?Set S3_ENDPOINT}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+services:
+  langfuse-web:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      <<: *shared
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET}
+      LANGFUSE_INIT_ORG_ID: runtime-demo-org
+      LANGFUSE_INIT_ORG_NAME: Runtime Demo
+      LANGFUSE_INIT_PROJECT_ID: runtime-demo-project
+      LANGFUSE_INIT_PROJECT_NAME: Runtime Demo
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:?Set LANGFUSE_INIT_USER_EMAIL}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?Set LANGFUSE_INIT_USER_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+  langfuse-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment: *shared
+    depends_on:
+      langfuse-web:
+        condition: service_healthy
+    restart: unless-stopped
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_DB: langfuse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3
+    environment:
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  valkey:
+    image: valkey/valkey:9
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  postgres-data:
+  clickhouse-data:
+  valkey-data:
